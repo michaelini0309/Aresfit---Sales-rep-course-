@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;backgr
 <script>
 (async()=>{
   try{
-    const stamp='20260726-final-direct';
+    const stamp='20260726-admin-review-v1';
     const files=Array.from({length:12},(_,i)=>`course-src/part-${String(i+1).padStart(2,'0')}.html?v=${stamp}`);
     const parts=[];
     for(const file of files){
@@ -23,10 +23,33 @@ html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;backgr
       if(!text) throw new Error(`Empty course file: ${file}`);
       parts.push(text);
     }
-    const html=parts.join('');
+    let html=parts.join('');
     if(!html.toLowerCase().includes('<!doctype html>')||!html.includes('Commercial Sales Rep Training')||!html.includes('aresfit_rep_course_v6_state')||!html.toLowerCase().includes('</html>')){
       throw new Error('The published course failed its integrity check.');
     }
+    const adminPatch=`<script>
+const ADMIN_REVIEW_KEY='aresfit_rep_course_admin_review_v1';
+const ADMIN_REVIEW_PIN='789654';
+let adminReviewUnlocked=false;
+try{adminReviewUnlocked=localStorage.getItem(ADMIN_REVIEW_KEY)==='1';}catch(e){}
+function applyAdminReviewUi(){
+ const top=document.querySelector('.progress-top');
+ if(top&&!document.getElementById('adminReviewUnlock')){
+  const button=document.createElement('button');button.type='button';button.id='adminReviewUnlock';button.title='Unlock every course page for review';button.style.cssText='margin-left:7px;padding:3px 6px;border:1px solid rgba(255,255,255,.38);border-radius:2px;background:rgba(255,255,255,.08);color:#dce7f2;font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer';button.textContent=adminReviewUnlocked?'Admin ✓':'Admin';
+  button.onclick=()=>{if(adminReviewUnlocked){toast('Admin review is already active');return;}const pin=prompt('Enter the 6-digit admin PIN');if(pin===null)return;if(!/^\\d{6}$/.test(pin)){toast('Enter a 6-digit PIN');return;}if(pin!==ADMIN_REVIEW_PIN){toast('Incorrect admin PIN');return;}adminReviewUnlocked=true;try{localStorage.setItem(ADMIN_REVIEW_KEY,'1');}catch(e){}button.textContent='Admin ✓';button.style.background='#fff';button.style.color='#315c8c';updateProgressUI();if(state.lastView==='dashboard')renderDashboard();if(state.lastView==='assessmentIntro')openAssessmentIntro();toast('Admin review unlocked');};top.appendChild(button);
+ }
+ const button=document.getElementById('adminReviewUnlock');if(button&&adminReviewUnlocked){button.textContent='Admin ✓';button.style.background='#fff';button.style.color='#315c8c';}
+ if(adminReviewUnlocked){document.querySelectorAll('.module-button').forEach(b=>{b.disabled=false;b.classList.remove('locked');});document.querySelectorAll('.dashboard-card').forEach(c=>c.classList.remove('locked'));const assessmentButton=document.getElementById('assessmentBtn');if(assessmentButton)assessmentButton.disabled=false;const startButton=document.getElementById('startAssessment');if(startButton)startButton.disabled=false;}
+}
+const originalModuleUnlocked=moduleUnlocked;moduleUnlocked=function(index){return adminReviewUnlocked||originalModuleUnlocked(index);};
+const originalRenderSidebar=renderSidebar;renderSidebar=function(){originalRenderSidebar();applyAdminReviewUi();};
+const originalRenderDashboard=renderDashboard;renderDashboard=function(){originalRenderDashboard();applyAdminReviewUi();if(adminReviewUnlocked){document.querySelectorAll('.dashboard-card').forEach((card,index)=>{card.classList.remove('locked');card.onclick=()=>openModule(index,state.currentModule===index?state.currentStep:0);});document.getElementById('assessmentBtn').disabled=false;}};
+const originalRenderLesson=renderLesson;renderLesson=function(){originalRenderLesson();if(adminReviewUnlocked)document.getElementById('lessonNext').disabled=false;};
+const originalOpenAssessmentIntro=openAssessmentIntro;openAssessmentIntro=function(){originalOpenAssessmentIntro();if(adminReviewUnlocked){document.getElementById('startAssessment').disabled=false;document.getElementById('assessmentLockNote').innerHTML='<strong>Admin review mode</strong><p>The assessment is unlocked for course review. Rep completion progress has not been altered.</p>';}};
+document.getElementById('lessonNext').addEventListener('click',event=>{if(!adminReviewUnlocked)return;event.preventDefault();event.stopImmediatePropagation();const module=modules[state.currentModule];if(state.currentStep<module.steps.length-1){state.currentStep++;saveState();renderLesson();window.scrollTo(0,0);}else if(state.currentModule<modules.length-1){openModule(state.currentModule+1,0);}else{openAssessmentIntro();}},true);
+applyAdminReviewUi();updateProgressUI();
+<\/script>`;
+    html=html.replace(/<\/body>\s*<\/html>\s*$/i,adminPatch+'</body></html>');
     document.open();
     document.write(html);
     document.close();
