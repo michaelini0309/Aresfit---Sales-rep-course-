@@ -5,42 +5,35 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AresFit Sales Rep Course</title>
 <style>
-html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;background:#eef3f8;color:#10233f}
-body{display:grid;place-items:center}.box{width:min(620px,calc(100% - 32px));background:#fff;border:1px solid #cbd5e1;padding:32px;box-shadow:0 12px 35px rgba(15,35,63,.12)}h1{margin:0 0 12px}.bar{height:8px;background:#dbe7f4;margin-top:20px;overflow:hidden}.bar:after{content:'';display:block;height:100%;width:40%;background:#1d5fa7;animation:load 1.2s infinite}@keyframes load{from{transform:translateX(-120%)}to{transform:translateX(280%)}}.err{color:#a12b2b;white-space:pre-wrap}
+html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;background:#eef3f8;color:#10233f}body{display:grid;place-items:center}.box{width:min(620px,calc(100% - 32px));background:#fff;border:1px solid #cbd5e1;padding:32px;box-shadow:0 12px 35px rgba(15,35,63,.12)}h1{margin:0 0 12px}.bar{height:8px;background:#dbe7f4;margin-top:20px;overflow:hidden}.bar:after{content:'';display:block;height:100%;width:40%;background:#315c8c;animation:load 1.2s infinite}@keyframes load{from{transform:translateX(-120%)}to{transform:translateX(280%)}}#err{color:#a12b2b;white-space:pre-wrap}
 </style>
 </head>
 <body>
-<div class="box">
-<h1>AresFit Sales Rep Course</h1>
-<p id="status">Loading the course…</p>
-<div class="bar" id="bar"></div>
-<p class="err" id="err"></p>
-</div>
-<script>window.__coursePayloadParts=[];</script>
-<script src="payload-01.js"></script>
-<script src="payload-02.js"></script>
-<script src="payload-03a.js"></script>
-<script src="payload-03b.js"></script>
-<script src="payload-03c.js"></script>
+<div class="box"><h1>AresFit Sales Rep Course</h1><p id="status">Loading the course…</p><div class="bar" id="bar"></div><p id="err"></p></div>
 <script>
 (async()=>{
   try{
-    const encoded=(window.__coursePayloadParts||[]).join('');
-    if(!encoded || encoded.length%4!==0) throw new Error('The course data is incomplete.');
-    const binary=atob(encoded);
-    const bytes=new Uint8Array(binary.length);
-    for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
-    if(typeof DecompressionStream==='undefined') throw new Error('This browser does not support the course decompressor. Open the link in current Chrome, Edge or Safari.');
-    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const html=await new Response(stream).text();
-    if(!html.toLowerCase().includes('<!doctype html>')) throw new Error('The course file failed its integrity check.');
+    const stamp='20260726-final-direct';
+    const files=Array.from({length:12},(_,i)=>`course-src/part-${String(i+1).padStart(2,'0')}.html?v=${stamp}`);
+    const parts=[];
+    for(const file of files){
+      const response=await fetch(file,{cache:'no-store'});
+      if(!response.ok) throw new Error(`Missing course file: ${file} (${response.status})`);
+      const text=await response.text();
+      if(!text) throw new Error(`Empty course file: ${file}`);
+      parts.push(text);
+    }
+    const html=parts.join('');
+    if(!html.toLowerCase().includes('<!doctype html>')||!html.includes('Commercial Sales Rep Training')||!html.includes('aresfit_rep_course_v6_state')||!html.toLowerCase().includes('</html>')){
+      throw new Error('The published course failed its integrity check.');
+    }
     document.open();
     document.write(html);
     document.close();
-  }catch(e){
+  }catch(error){
     document.getElementById('bar').style.display='none';
     document.getElementById('status').textContent='The course could not be loaded.';
-    document.getElementById('err').textContent=e.message;
+    document.getElementById('err').textContent=error.message;
   }
 })();
 </script>
