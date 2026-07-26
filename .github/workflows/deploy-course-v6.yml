@@ -1,0 +1,59 @@
+name: Deploy AresFit course v6
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'course-src/**'
+      - '.github/workflows/deploy-course-v6.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Assemble direct course page
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cat course-src/part-*.html > _site/index.html
+          touch _site/.nojekyll
+
+          test "$(grep -ci '<!doctype html>' _site/index.html)" -eq 1
+          test "$(grep -ci '</html>' _site/index.html)" -eq 1
+          grep -q "Commercial Sales Rep Training" _site/index.html
+          grep -q "aresfit_rep_course_v6_state" _site/index.html
+          grep -q "aresfit_rep_course_v6_backup" _site/index.html
+          grep -q "builderDrafts" _site/index.html
+          grep -q "tapProgress" _site/index.html
+          ! grep -q "The course data is incomplete" _site/index.html
+          ! grep -q "atob(" _site/index.html
+          ! grep -q "payload-01.js" _site/index.html
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
