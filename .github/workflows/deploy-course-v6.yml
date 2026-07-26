@@ -27,7 +27,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Assemble direct course page
+      - name: Assemble and verify direct course page
         shell: bash
         run: |
           set -euo pipefail
@@ -48,6 +48,8 @@ jobs:
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
