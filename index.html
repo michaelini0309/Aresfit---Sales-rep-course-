@@ -13,7 +13,7 @@ html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;backgr
 <script>
 (async()=>{
   try{
-    const stamp='v74-full-dac435ac';
+    const stamp='v74-module-order-admin-reset';
     const files=Array.from({length:12},(_,i)=>`course-v74/part-${String(i+1).padStart(2,'0')}.html?v=${stamp}`);
     const parts=[];
     for(const file of files){
@@ -24,20 +24,64 @@ html,body{margin:0;min-height:100%;font-family:Arial,Helvetica,sans-serif;backgr
       parts.push(text);
     }
     let html=parts.join('');
-    const checks=[
-      '<!doctype html>',
-      'AresFit Sales Rep Course v7.4',
-      'How AresFit works as a supplier',
-      "const VERSION='7.4'",
-      "const ADMIN_PIN='789654'",
-      'repSignInBtn',
-      'AresFit Rep Training v7.4',
-      '</html>'
-    ];
+    const checks=['<!doctype html>','AresFit Sales Rep Course v7.4','How AresFit works as a supplier',"const VERSION='7.4'","const ADMIN_PIN='789654'",'repSignInBtn','AresFit Rep Training v7.4','</html>'];
     const missing=checks.filter(marker=>!html.toLowerCase().includes(marker.toLowerCase()));
     if(missing.length) throw new Error(`The published v7.4 course failed its integrity check: ${missing.join(', ')}`);
+
+    html=html.replace("try{adminUnlocked=localStorage.getItem(ADMIN_KEY)==='1';}catch(e){}","try{localStorage.removeItem(ADMIN_KEY)}catch(e){}");
+    html=html.replace("try{localStorage.setItem(ADMIN_KEY,adminUnlocked?'1':'0')}catch(e){}","try{localStorage.removeItem(ADMIN_KEY)}catch(e){}");
+
+    const moduleStartMarker='const modules=[';
+    const moduleEndMarker='];\nconst assessmentQuestions=';
+    const moduleStart=html.indexOf(moduleStartMarker);
+    const moduleEnd=html.indexOf(moduleEndMarker,moduleStart);
+    if(moduleStart<0||moduleEnd<0) throw new Error('Could not locate course modules.');
+    const bodyStart=moduleStart+moduleStartMarker.length;
+    const body=html.slice(bodyStart,moduleEnd);
+    const items=[];
+    let i=0;
+    while(i<body.length){
+      while(i<body.length&&/[\s,]/.test(body[i])) i++;
+      if(i>=body.length) break;
+      if(body[i]!=='{') throw new Error('Course module structure is invalid.');
+      const start=i;
+      let depth=0,inString=false,escaped=false;
+      for(;i<body.length;i++){
+        const ch=body[i];
+        if(inString){
+          if(escaped) escaped=false;
+          else if(ch==='\\') escaped=true;
+          else if(ch==='"') inString=false;
+        }else{
+          if(ch==='"') inString=true;
+          else if(ch==='{'||ch==='[') depth++;
+          else if(ch==='}'||ch===']'){
+            depth--;
+            if(depth===0){i++;items.push(body.slice(start,i));break;}
+          }
+        }
+      }
+    }
+    const ownershipIndex=items.findIndex(item=>item.includes('"id":"ownership"'));
+    const businessIndex=items.findIndex(item=>item.includes('"id":"aresfit_business"'));
+    if(ownershipIndex<0||businessIndex<0) throw new Error('Required opening modules are missing.');
+    if(businessIndex!==0){
+      const business=items.splice(businessIndex,1)[0];
+      items.unshift(business);
+    }
+    const ownershipNow=items.findIndex(item=>item.includes('"id":"ownership"'));
+    if(ownershipNow!==1){
+      const ownership=items.splice(ownershipNow,1)[0];
+      items.splice(1,0,ownership);
+    }
+    html=html.slice(0,bodyStart)+items.join(',')+html.slice(moduleEnd);
+
     html=html.replace("b.textContent=adminUnlocked?'Admin ✓':'Admin';","b.textContent=adminUnlocked?'🔓':'🔒';");
     html=html.replace("b.title=adminUnlocked?'Admin review mode is active. Select to lock it again.':'Unlock every course page for review';","b.title=adminUnlocked?'Admin review active — select to lock':'Admin unlock — review every course page';");
+
+    if(!(html.indexOf('"id":"aresfit_business"')<html.indexOf('"id":"ownership"'))) throw new Error('Opening module order check failed.');
+    if(html.includes("adminUnlocked=localStorage.getItem(ADMIN_KEY)==='1'")) throw new Error('Admin lock reset check failed.');
+
     document.open();
     document.write(html);
     document.close();
